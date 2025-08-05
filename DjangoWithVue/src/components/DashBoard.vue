@@ -124,9 +124,9 @@ export default {
     
     async fetchDashboardData() {
       try {
-        const booksRes = await axios.get("http://127.0.0.1:8000/api/books/");
-        const ordersRes = await axios.get("http://127.0.0.1:8000/api/orders/");
-        const usersRes = await axios.get("http://127.0.0.1:8000/api/users/");
+        const booksRes = await axios.get("http://127.0.0.1:8000/api/books/", { withCredentials: true });
+        const ordersRes = await axios.get("http://127.0.0.1:8000/api/orders/", { withCredentials: true });
+        const usersRes = await axios.get("http://127.0.0.1:8000/api/users/", { withCredentials: true });
 
         this.books = booksRes.data.slice(-6).reverse();
         this.totalBooks = booksRes.data.length;

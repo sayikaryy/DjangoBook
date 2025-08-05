@@ -33,33 +33,32 @@
 </template>
 
 <script>
-import axios from '@/utils/axios'; // Axios with auth setup
-
+import axios from 'axios'; // Axios with auth setup
+import { API_BASE_URL } from '../utils/auth';
 export default {
   data() {
     return {
+      API_BASE_URL,
       username: '',
       password: '',
     };
   },
   methods: {
-    async handleLogin() {
+  async handleLogin() {
   try {
-    const res = await axios.post('/api/token/', {
+    const res = await axios.post(API_BASE_URL+ '/api/token/', {
       username: this.username,
       password: this.password,
-    });
+    }, { withCredentials: true }); // IMPORTANT: send cookies
 
-    // Save tokens
-    localStorage.setItem('access', res.data.access);
-    localStorage.setItem('refresh', res.data.refresh);
+    // Don't save tokens to localStorage anymore
 
-    // Optional: save role if backend sends it
-    if ('is_admin' in res.data) {
-      localStorage.setItem('is_admin', res.data.is_admin);
-    }
+    // You can still store user role if returned in response:
+    // if ('is_admin' in res.data) {
+    //   localStorage.setItem('is_admin', res.data.is_admin);
+    // }
 
-    // Redirect based on role
+    // Redirect
     if (res.data.is_admin) {
       this.$router.push('/'); // Admin dashboard
     } else {
@@ -70,6 +69,7 @@ export default {
     alert('Login failed. Please check your credentials.');
   }
 }
+
   },
 };
 </script>.

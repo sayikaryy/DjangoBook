@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Book, Category
+from .models import Book, Category, Customer
 from rest_framework import viewsets
 from .models import Category
 from .serializers import CategorySerializer, BookSerializer
@@ -153,18 +153,34 @@ class UserListView(generics.ListAPIView):
 class CustomTokenView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         original_response = super().post(request, *args, **kwargs)
-
         if original_response.status_code != 200:
-            # Forward the error response if credentials are wrong
             return original_response
 
         access = original_response.data.get('access')
         refresh = original_response.data.get('refresh')
 
-        res = Response({'message': 'Login successful'})
-        res.set_cookie('access_token', access, httponly=True, secure=False, samesite='Lax')
-        res.set_cookie('refresh_token', refresh, httponly=True, secure=False, samesite='Lax')
+        res = Response({"message": "Login successful"})
+        res.set_cookie(
+            key='access_token',
+            value=access,
+            httponly=True,
+            secure=False,    # False on localhost HTTP dev
+            samesite='Lax',
+            max_age=30000,
+            path='/',
+        )
+        res.set_cookie(
+            key='refresh_token',
+            value=refresh,
+            httponly=True,
+            secure=False,
+            samesite='Lax',
+            max_age=7*24*3600,
+            path='/',
+        )
         return res
+
+    
 from rest_framework.views import APIView
 
 class LogoutView(APIView):
@@ -209,15 +225,21 @@ class CartView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        cart, _ = Cart.objects.get_or_create(user=request.user)
+        print("Fetching cart for user:", request.user.username)
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        print(f"Cart created? {created}, Cart ID: {cart.id}")
         items = CartItem.objects.filter(cart=cart)
+        print(f"Number of items in cart: {items.count()}")
+        for i in items:
+            print(f"Item: {i.book.title}, Quantity: {i.quantity}")
         serializer = CartItemSerializer(items, many=True)
         return Response(serializer.data)
+
 
     def post(self, request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         book_id = request.data.get("book_id")
-        quantity = request.data.get("quantity", 1)
+        quantity = int(request.data.get("quantity", 1))  # Convert to int
 
         try:
             book = Book.objects.get(id=book_id)
@@ -229,29 +251,50 @@ class CartView(APIView):
                 item.quantity = quantity
 
             item.save()
-            return Response({"detail": "Added to cart!"}, status=201)
+            return Response({"detail": "Added to cart!", item: item}, status=201)
         except Book.DoesNotExist:
             return Response({"detail": "Book not found."}, status=404)
 
 class CartItemDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request, item_id):
+    def get_cart_and_item(self, request, item_id):
+        cart, _ = Cart.objects.get_or_create(user=request.user)
         try:
-            item = CartItem.objects.get(id=item_id, cart__user=request.user)
-            item.quantity = request.data.get("quantity", item.quantity)
-            item.save()
-            return Response({"detail": "Quantity updated!"})
+            item = CartItem.objects.get(cart=cart, id=item_id)
+            return cart, item
         except CartItem.DoesNotExist:
-            return Response({"detail": "Cart item not found."}, status=404)
+            return cart, None
+
+    def put(self, request, item_id):
+        cart, item = self.get_cart_and_item(request, item_id)
+        if not item:
+            return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        quantity = request.data.get("quantity")
+        if quantity is None:
+            return Response({"detail": "Quantity is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            quantity = int(quantity)
+            if quantity < 1:
+                return Response({"detail": "Quantity must be at least 1"}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return Response({"detail": "Quantity must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+
+        item.quantity = quantity
+        item.save()
+        serializer = CartItemSerializer(item)
+        return Response(serializer.data)
 
     def delete(self, request, item_id):
-        try:
-            item = CartItem.objects.get(id=item_id, cart__user=request.user)
-            item.delete()
-            return Response({"detail": "Item removed from cart!"})
-        except CartItem.DoesNotExist:
-            return Response({"detail": "Cart item not found."}, status=404)
+        cart, item = self.get_cart_and_item(request, item_id)
+        if not item:
+            return Response({"detail": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        item.delete()
+        return Response({"detail": "Item removed from cart"}, status=status.HTTP_204_NO_CONTENT)
+    
 class CustomTokenSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -261,20 +304,52 @@ class CustomTokenSerializer(TokenObtainPairSerializer):
         return data
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenSerializer
+     def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            access_token = response.data.get("access")
+            refresh_token = response.data.get("refresh")
+
+            # Set the HttpOnly cookies
+            response.set_cookie(
+                key='access_token',
+                value=access_token,
+                httponly=True,
+                secure=True,
+                samesite='None',
+                max_age=3600,  # 1 hour
+            )
+            response.set_cookie(
+                key='refresh_token',
+                value=refresh_token,
+                httponly=True,
+                secure=True,
+                samesite='None',
+                max_age=7 * 24 * 3600,  # 7 days
+            )
+
+            # Optionally remove tokens from response body
+            del response.data['access']
+            del response.data['refresh']
+        return response
     
 class AddToCartView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        book_id = request.data.get('book_id')
-        quantity = request.data.get('quantity', 1)
+        print("== DEBUG START ==")
+        print("Authenticated User:", request.user)
+        print("Is Authenticated:", request.user.is_authenticated)
+        print("Request Data:", request.data)
+        print("Authorization Header:", request.headers.get("Authorization"))
+        print("== DEBUG END ==")
 
-        # Your logic to add item to cart:
+        book_id = request.data.get('book_id')
+        quantity = int(request.data.get('quantity', 1))
+
         try:
             book = Book.objects.get(id=book_id)
-            cart, created = Cart.objects.get_or_create(user=request.user, defaults={'user': request.user})
-            # Add or update cart item
+            cart, created = Cart.objects.get_or_create(user=request.user)
             cart_item, created = CartItem.objects.get_or_create(cart=cart, book=book)
             cart_item.quantity += quantity
             cart_item.save()
@@ -284,6 +359,8 @@ class AddToCartView(APIView):
 
         except Book.DoesNotExist:
             return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_to_cart(request):
@@ -315,10 +392,42 @@ def get_cart(request):
     return Response(serializer.data)
 
 class OrderViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        # Return orders only for current logged-in user
+        return self.queryset.filter(customer__user=self.request.user)
+    
+class CheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        # Assign customer automatically from logged in user
-        serializer.save(customer=self.request.user.customer)
+    def post(self, request):
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        items = CartItem.objects.filter(cart=cart)
+
+        if not items.exists():
+            return Response({"detail": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            customer = Customer.objects.get(user=request.user)
+        except Customer.DoesNotExist:
+            return Response({"detail": "Customer profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create order with the customer instance
+        order = Order.objects.create(customer=customer, status='Pending')
+
+        # Create order items
+        for item in items:
+            OrderItem.objects.create(
+                order=order,
+                book=item.book,
+                quantity=item.quantity,
+            )
+
+        # Clear cart
+        items.delete()
+
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

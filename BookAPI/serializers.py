@@ -97,30 +97,23 @@ from .models import Order, OrderItem
 
 class OrderItemSerializer(serializers.ModelSerializer):
     book_title = serializers.CharField(source='book.title', read_only=True)
-    book_price = serializers.DecimalField(source='book.price', max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'book', 'book_title', 'book_price', 'quantity']
+        fields = ['id', 'book_title', 'quantity']
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)  # nested order items
+    customer = CustomerSerializer(read_only=True)
+    items = OrderItemSerializer(many=True)  # or use related_name if set
+    total_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'date_ordered', 'status', 'items']
-        read_only_fields = ['customer', 'date_ordered']
+        fields = ['id', 'customer', 'date_ordered', 'status', 'items', 'total_amount']
 
-    def create(self, validated_data):
-        items_data = validated_data.pop('items')
-        customer = self.context['request'].user.customer  # get customer from logged in user
+    def get_total_amount(self, obj):
+        return sum(item.book.price * item.quantity for item in obj.items.all())
 
-        order = Order.objects.create(customer=customer, **validated_data)
-        
-        for item_data in items_data:
-            OrderItem.objects.create(order=order, **item_data)
-        
-        return order
 
     
 class CartItemSerializer(serializers.ModelSerializer):

@@ -49,7 +49,7 @@
 
       <div v-else class="space-y-4">
         <div
-          v-for="(item, index) in cart"
+          v-for="item in cart"
           :key="item.bookId"
           class="border p-4 rounded flex justify-between items-center"
         >

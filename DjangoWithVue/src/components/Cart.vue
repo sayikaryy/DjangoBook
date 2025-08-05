@@ -50,19 +50,19 @@
     <!-- Cart Items -->
     <div v-else class="space-y-4">
       <div
-        v-for="(item, index) in cart"
+        v-for="item in cart"
         :key="item.id"
         class="flex justify-between items-center border border-gray-200 rounded p-4 shadow-sm"
       >
         <div>
-          <div class="font-semibold text-lg">{{ item.book.title }}</div>
-          <div class="text-sm text-gray-600">Price: ${{ item.book.price }}</div>
+          <div class="font-semibold text-lg">{{ item.book_title }}</div>
+          <div class="text-sm text-gray-600">Price: ${{ item.book_price }}</div>
           <div class="mt-2">
             Quantity:
             <input
               type="number"
               v-model.number="item.quantity"
-              @change="updateQuantity(index)"
+              @change="updateQuantity(item)"
               class="w-16 ml-2 border border-gray-300 px-2 py-1 rounded"
               min="1"
             />
@@ -70,77 +70,120 @@
         </div>
 
         <button
-          @click="removeFromCart(index)"
+          @click="removeFromCart(item.id)"
           class="text-red-600 font-medium hover:underline"
         >
           ✖ Remove
         </button>
       </div>
 
-      <!-- Cart Total -->
-      <div class="text-right text-lg font-semibold border-t pt-4">
-        Total: ${{ cartTotal }}
+      <div class="flex justify-between items-center">
+        <!-- Cart Total -->
+        <div class="text-right text-lg font-semibold pt-4">
+          Total: ${{ cartTotal }}
+        </div>
+        <button
+          @click="checkout"
+          class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          :disabled="cart.length === 0"
+        >
+          💳 Checkout
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import axios from '@/utils/axios'; // ✅ use your custom axios instance
-import { RouterLink } from 'vue-router';
+import axios from "@/utils/axios";
+import { RouterLink } from "vue-router";
+import { API_BASE_URL } from "../utils/auth";
 
 export default {
   components: { RouterLink },
   data() {
     return {
       cart: [],
-      tab: 'cart',
+      tab: "cart",
     };
   },
   computed: {
     cartTotal() {
       return this.cart
-        .reduce((total, item) => total + item.book.price * item.quantity, 0)
+        .reduce(
+          (total, item) => total + parseFloat(item.book_price) * item.quantity,
+          0
+        )
         .toFixed(2);
     },
     cartCount() {
       return this.cart.reduce((sum, item) => sum + item.quantity, 0);
     },
     tabClass() {
-      return 'bg-gray-100 text-gray-700 hover:bg-gray-200';
+      return "bg-gray-100 text-gray-700 hover:bg-gray-200";
     },
     activeTabClass() {
-      return 'bg-blue-600 text-white shadow-md';
+      return "bg-blue-600 text-white shadow-md";
     },
   },
   methods: {
-    async fetchCart() {
-      try {
-        const response = await axios.get('/api/cart/');
-        this.cart = response.data;
-      } catch (error) {
-        console.error('Failed to load cart:', error);
+    async checkout() {
+      if (this.cart.length === 0) {
+        alert("Your cart is empty!");
+        return;
       }
-    },
-    async updateQuantity(index) {
-      const item = this.cart[index];
-      if (item.quantity <= 0) item.quantity = 1;
 
       try {
-        await axios.put(`/api/cart/${item.id}/`, {
-          quantity: item.quantity,
-        });
+        const response = await axios.post(
+          API_BASE_URL + "/api/checkout/",
+          {},
+          { withCredentials: true }
+        );
+        alert("Order placed successfully!");
+        this.cart = []; // Clear local cart after checkout
+        // Optionally redirect to orders page
+        this.$router.push("/orders");
       } catch (error) {
-        console.error('Failed to update quantity:', error);
+        console.error("Checkout failed:", error);
+        alert("Failed to place order. Please try again.");
       }
     },
-    async removeFromCart(index) {
-      const item = this.cart[index];
+
+    async fetchCart() {
       try {
-        await axios.delete(`/api/cart/${item.id}/`);
-        this.cart.splice(index, 1);
+        const response = await axios.get(`${API_BASE_URL}/api/cart/`, {
+          withCredentials: true,
+        });
+        this.cart = response.data;
       } catch (error) {
-        console.error('Failed to remove item from cart:', error);
+        console.error("❌ Failed to load cart:", error);
+      }
+    },
+
+    async updateQuantity(item) {
+      if (item.quantity < 1) item.quantity = 1;
+
+      try {
+        await axios.put(
+          `${API_BASE_URL}/api/cart/items/${item.id}/`,
+          { quantity: item.quantity },
+          { withCredentials: true }
+        );
+        console.log("✅ Quantity updated");
+      } catch (error) {
+        console.error("❌ Failed to update quantity:", error);
+      }
+    },
+
+    async removeFromCart(itemId) {
+      try {
+        await axios.delete(`${API_BASE_URL}/api/cart/items/${itemId}/`, {
+          withCredentials: true,
+        });
+        this.cart = this.cart.filter((item) => item.id !== itemId);
+        console.log("✅ Item removed");
+      } catch (error) {
+        console.error("❌ Failed to remove item from cart:", error);
       }
     },
   },

@@ -73,7 +73,7 @@ export default {
   methods: {
     async fetchOrders() {
       try {
-        const res = await axios.get("http://127.0.0.1:8000/api/orders/");
+        const res = await axios.get("http://127.0.0.1:8000/api/orders/", { withCredentials: true });
         this.orders = res.data.map(order => ({
           id: order.id,
           customer_name: order.customer?.user?.username || "Guest",

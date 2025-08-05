@@ -7,6 +7,7 @@ from .views import OrderViewSet, UserViewSet, CartViewSet
 from .views import CartView, CartItemDetailView
 from .views import CustomTokenObtainPairView
 from .views import AddToCartView
+from .views import CheckoutView
 
 # ✅ Create router
 router = DefaultRouter()
@@ -14,7 +15,6 @@ router.register(r'categories', CategoryViewSet)
 router.register(r'books', BookViewSet, basename='book')
 router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'users', UserViewSet, basename='user')
-router.register(r'cart', CartViewSet, basename='cart')
 #router.register(r'cart', CartViewSet, basename='cart')
 
 
@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path('api/cart/', CartView.as_view()),
     path('api/cart/items/<int:item_id>/', CartItemDetailView.as_view()),
+    path('api/checkout/', CheckoutView.as_view(), name='checkout'),
 ]
     
 
