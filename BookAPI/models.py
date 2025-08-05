@@ -46,9 +46,10 @@ class Order(models.Model):
 
 # Order Item
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-    book = models.ForeignKey(Book, related_name='order_items', on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
+
 
     def __str__(self):
         return f"{self.quantity} x {self.book.title} in Order {self.order.id}"
@@ -63,6 +64,17 @@ class Payment(models.Model):
         ('Acleda Bank', 'Acleda Bank'),
     ])
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    
 
     def __str__(self):
         return f"Payment for Order {self.order.id} - ${self.amount}"
+class Cart(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, related_name="items", on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    
+    

@@ -1,16 +1,45 @@
 from rest_framework import serializers
-from .models import Category, Book
+from .models import CartItem, Category, Book
 from django.contrib.auth.models import User
 from .models import Customer
+from .models import Order, OrderItem
+
+
+
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
+
 class BookSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Book
-        fields = '__all__'
+        fields = [
+            'id',
+            'title',
+            'author',
+            'price',
+            'stock',
+            'description',
+            'category',
+            'image',       # ✅ Accept uploaded image
+            'image_url'    # ✅ Provide absolute URL for display
+        ]
+        extra_kwargs = {
+            'image': {'write_only': True}  # Hide raw path in response if you want
+        }
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.image and hasattr(obj.image, 'url'):
+            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+        return None
+
+
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,3 +73,61 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email']
+
+# class OrderItemSerializer(serializers.ModelSerializer):
+#     book_title = serializers.CharField(source='book.title', read_only=True)
+    
+#     class Meta:
+#         model = OrderItem
+#         fields = ['book_title', 'quantity']
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'order', 'book', 'quantity']
+
+    def create(self, validated_data):
+        order = validated_data.get('order')
+        if not order:
+            raise serializers.ValidationError("Order is required.")
+        return OrderItem.objects.create(**validated_data)
+
+
+from rest_framework import serializers
+from .models import Order, OrderItem
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    book_title = serializers.CharField(source='book.title', read_only=True)
+    book_price = serializers.DecimalField(source='book.price', max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'book', 'book_title', 'book_price', 'quantity']
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)  # nested order items
+
+    class Meta:
+        model = Order
+        fields = ['id', 'customer', 'date_ordered', 'status', 'items']
+        read_only_fields = ['customer', 'date_ordered']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        customer = self.context['request'].user.customer  # get customer from logged in user
+
+        order = Order.objects.create(customer=customer, **validated_data)
+        
+        for item_data in items_data:
+            OrderItem.objects.create(order=order, **item_data)
+        
+        return order
+
+    
+class CartItemSerializer(serializers.ModelSerializer):
+    book_title = serializers.CharField(source='book.title', read_only=True)
+    book_price = serializers.DecimalField(source='book.price', read_only=True, max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = CartItem
+        fields = ['id', 'book', 'book_title', 'book_price', 'quantity']
+    
