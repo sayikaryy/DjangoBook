@@ -10,7 +10,7 @@ import UserPage from '../components/users.vue';
 import UserDashboard from '../components/user_dashboard.vue';
 import Cart from '../components/Cart.vue';
 import Checkout from '../components/Checkout.vue';
-import OrderHistory from '../components/OrderHistory.vue';
+import OrderAdmin from '../components/Order_admin.vue';
 
 
 
@@ -26,9 +26,9 @@ const routes = [
     component: Checkout,
   },
   {
-    path: '/order-history',
-    name: 'order-history',
-    component: OrderHistory,
+    path: '/order-admin',
+    name: 'order-admin',
+    component: OrderAdmin,
   },
   
   {

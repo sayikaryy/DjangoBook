@@ -1,45 +1,9 @@
 <template>
   <div class="p-6 bg-gray-100 min-h-screen">
     <!-- Tabs -->
-    <div class="flex flex-wrap gap-4 mb-6">
-      <RouterLink
-        to="/user-dashboard"
-        class="px-4 py-2 rounded font-medium transition"
-        :class="tab === 'books' ? activeTabClass : tabClass"
-        @click="tab = 'books'"
-      >
-        📚 Books
-      </RouterLink>
+  
 
-      <RouterLink
-        to="/cart"
-        class="px-4 py-2 rounded font-medium transition"
-        :class="tab === 'cart' ? activeTabClass : tabClass"
-        @click="tab = 'cart'"
-      >
-        🛒 Cart
-      </RouterLink>
-
-      <RouterLink
-        to="/checkout"
-        class="px-4 py-2 rounded font-medium transition"
-        :class="tab === 'checkout' ? activeTabClass : tabClass"
-        @click="tab = 'checkout'"
-      >
-        💸 Checkout
-      </RouterLink>
-
-      <RouterLink
-        to="/orders"
-        class="px-4 py-2 rounded font-medium transition"
-        :class="tab === 'orders' ? activeTabClass : tabClass"
-        @click="tab = 'orders'"
-      >
-        🧾 Order History
-      </RouterLink>
-    </div>
-
-    <h1 class="text-3xl font-bold mb-6 text-gray-800">🧾 Orders History</h1>
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">🛒 Admin Order Management</h1>
 
     <!-- Loading state -->
     <div v-if="loading" class="text-gray-500">Loading orders...</div>
@@ -116,7 +80,7 @@ export default {
   methods: {
     async fetchOrders() {
       try {
-        const res = await axios.get("http://127.0.0.1:8000/api/orders/", {
+        const res = await axios.get("http://127.0.0.1:8000/api/orderadmin/", {
           withCredentials: true
         });
 
@@ -161,7 +125,7 @@ export default {
       return this.cart.reduce((sum, item) => sum + item.quantity, 0);
     },
     tabClass() {
-      return 'bg-gray-200 text-gray-700 hover:bg-gray-200';
+      return 'bg-gray-100 text-gray-700 hover:bg-gray-200';
     },
     activeTabClass() {
       return 'bg-blue-600 text-white';

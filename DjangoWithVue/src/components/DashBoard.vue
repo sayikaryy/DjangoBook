@@ -13,7 +13,7 @@
       </router-link>
 
       <router-link 
-        to="/orders"
+        to="/order-admin"
         class="glass-card p-6 flex flex-col items-center animate-slide-up delay-100 hover:scale-105 transition"
       >
         <h2 class="text-lg text-gray-500">Orders</h2>
@@ -125,7 +125,7 @@ export default {
     async fetchDashboardData() {
       try {
         const booksRes = await axios.get("http://127.0.0.1:8000/api/books/", { withCredentials: true });
-        const ordersRes = await axios.get("http://127.0.0.1:8000/api/orders/", { withCredentials: true });
+        const ordersRes = await axios.get("http://127.0.0.1:8000/api/orderadmin/", { withCredentials: true });
         const usersRes = await axios.get("http://127.0.0.1:8000/api/users/", { withCredentials: true });
 
         this.books = booksRes.data.slice(-6).reverse();

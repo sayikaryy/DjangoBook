@@ -17,7 +17,7 @@
         :class="tab === 'cart' ? activeTabClass : tabClass"
         @click="tab = 'cart'"
       >
-        🛒 Cart<span v-if="cart.length > 0"> ({{ cart.length }})</span>
+        🛒 Cart
       </RouterLink>
 
       <RouterLink
@@ -160,6 +160,7 @@ export default {
       }
     },
   },
+  
   mounted() {
     this.loadCart();
   },
