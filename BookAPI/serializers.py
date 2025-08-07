@@ -7,6 +7,8 @@ from .models import Order, OrderItem
 
 
 
+
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
@@ -92,15 +94,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return OrderItem.objects.create(**validated_data)
 
 
-from rest_framework import serializers
-from .models import Order, OrderItem
+
 
 class OrderItemSerializer(serializers.ModelSerializer):
     book_title = serializers.CharField(source='book.title', read_only=True)
+    price = serializers.DecimalField(source='book.price', max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'book_title', 'quantity']
+        fields = ['id', 'book_title', 'price', 'quantity']
+
 
 class OrderSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)
@@ -118,9 +121,8 @@ class OrderSerializer(serializers.ModelSerializer):
     
 class CartItemSerializer(serializers.ModelSerializer):
     book_title = serializers.CharField(source='book.title', read_only=True)
-    book_price = serializers.DecimalField(source='book.price', read_only=True, max_digits=10, decimal_places=2)
+    book_price = serializers.DecimalField(source='book.price', max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
-        model = CartItem
+        model = OrderItem  # or CartItem, depending on your model
         fields = ['id', 'book', 'book_title', 'book_price', 'quantity']
-    

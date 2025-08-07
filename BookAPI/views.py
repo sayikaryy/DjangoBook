@@ -29,6 +29,10 @@ from rest_framework import permissions
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import CartItemSerializer
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.decorators import login_required
+from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+
 
 
 
@@ -47,6 +51,9 @@ class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
     parser_classes = (MultiPartParser, FormParser)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['category']  # For ?category=1
+    search_fields = ['title', 'author']  # For ?search=python
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -386,9 +393,13 @@ def add_to_cart(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cart(request):
-    cart, _ = Cart.objects.get_or_create(user=request.user)
-    items = CartItem.objects.filter(cart=cart)
-    serializer = CartItemSerializer(items, many=True)
+    try:
+        order = Order.objects.get(customer=request.user.customer, is_ordered=False)
+    except Order.DoesNotExist:
+        return Response([])
+
+    items = OrderItem.objects.filter(order=order)
+    serializer = OrderItemSerializer(items, many=True)
     return Response(serializer.data)
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -431,3 +442,20 @@ class CheckoutView(APIView):
 
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+@login_required
+@api_view(['GET'])
+def cart_view(request):
+    order = Order.objects.filter(customer=request.user.customer, complete=False).first()
+    if not order:
+        return Response([])  # No cart yet
+
+    items = OrderItem.objects.filter(order=order)
+    serializer = OrderItemSerializer(items, many=True)
+    return Response(serializer.data)
+
+
+
+class AdminOrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all().prefetch_related('items', 'items__book', 'customer__user')
+    serializer_class = OrderSerializer
+  

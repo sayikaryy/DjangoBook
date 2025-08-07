@@ -8,6 +8,7 @@ from .views import CartView, CartItemDetailView
 from .views import CustomTokenObtainPairView
 from .views import AddToCartView
 from .views import CheckoutView
+from .views import AdminOrderViewSet
 
 # ✅ Create router
 router = DefaultRouter()
@@ -15,6 +16,8 @@ router.register(r'categories', CategoryViewSet)
 router.register(r'books', BookViewSet, basename='book')
 router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'users', UserViewSet, basename='user')
+router.register(r'orderadmin', AdminOrderViewSet, basename='orderadmin')
+
 #router.register(r'cart', CartViewSet, basename='cart')
 
 
